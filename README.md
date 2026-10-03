@@ -4,7 +4,9 @@
 
 一个面向西班牙语初学者的轻量 Web 工具：本地运行、无需注册、无字幕时给清楚的原因和替代方案、默认不调用任何大模型也能完整工作。
 
-<p align="center"><em>（截图占位：运行后在浏览器中看到的界面）</em></p>
+<p align="center">
+  <img src="docs/screenshot.png" alt="界面截图：左侧内嵌播放器与材料概览，右侧单词/短语列表，每项带时间点跳转按钮" width="720">
+</p>
 
 ---
 
@@ -192,6 +194,7 @@ spanish-yt-learner/
 │   └── update_elelex.py      # 校验/刷新 ELELex（--check / --force）
 ├── tests/                    # 191 个测试
 ├── templates/  static/       # Jinja2 模板与原生 JS/CSS 前端（无构建步骤）
+├── docs/screenshot.png       # 界面截图
 └── requirements*.txt  .env.example  LICENSE  THIRD_PARTY_NOTICES.md
 ```
 

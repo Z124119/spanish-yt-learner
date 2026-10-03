@@ -13,15 +13,22 @@
 from __future__ import annotations
 
 import json
+import os
+from concurrent.futures import (
+    Future,
+    ThreadPoolExecutor,
+    TimeoutError as FuturesTimeoutError,
+    as_completed,
+)
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import transcript as transcript_module
 from .glossary import SOURCE_LABELS, Glossary, guess_pos_label
 from .lemmatizer import IRREGULAR_FORMS, is_stopword, lemmatize, normalize_token, tokenize
 from .level import CEFR_LEVELS, LevelResolver, get_profile, level_sort_key
-from .providers.base import ProviderNotConfigured, Translation
+from .providers.base import Translation
 from .providers.llm import OpenAICompatibleTranslator
 from .providers.offline import LiteralGlossTranslator, build_word_glosses
 from .segmenter import Paragraph, Sentence, segment_cues
@@ -44,6 +51,15 @@ DEPTH_NOTE = {
     "standard": "B1–B2 讲解深度：给出全部注释，强调搭配与语法点。",
     "nuanced": "C1–C2 讲解深度：给出全部注释，并提示语域与语气；更细的文体分析需接入大模型。",
 }
+
+# LLM 并发翻译的默认线程数（可用环境变量 LLM_CONCURRENCY 覆盖）
+DEFAULT_LLM_CONCURRENCY = 4
+# 缓存条目上限（超出后整体清空；键为 (demo_key, level)）
+TRANSLATION_CACHE_LIMIT = 1024
+# 并发翻译的整体时间预算上限（秒），防止个别慢请求拖死整个 HTTP 响应
+TRANSLATION_DEADLINE_CAP = 180.0
+# AI 失败回退时的短文案（不再把异常详情拼进每一句）
+FALLBACK_NOTE = "AI 翻译失败，已回退逐词直译。"
 
 
 def demo_key(text: str) -> str:
@@ -170,6 +186,17 @@ class MaterialBuilder:
         else:
             self.translator = LiteralGlossTranslator(self.glossary)
 
+        # ---- 翻译并发与缓存 ----
+        try:
+            workers = int(os.environ.get("LLM_CONCURRENCY", "") or DEFAULT_LLM_CONCURRENCY)
+        except ValueError:
+            workers = DEFAULT_LLM_CONCURRENCY
+        self._llm_max_workers = max(1, workers)
+        # 进程级缓存：键 (demo_key, level)，只缓存提供方成功结果（失败不缓存，保留自愈机会）
+        self._translation_cache: Dict[Tuple[str, str], Translation] = {}
+        # 共享的离线回退实例（替代每次失败新建）
+        self._fallback = LiteralGlossTranslator(self.glossary)
+
     # ------------------------------------------------------------------
     # 对外入口
     # ------------------------------------------------------------------
@@ -288,17 +315,21 @@ class MaterialBuilder:
         segments: List[dict] = []
         authored_hits = 0
         translated = 0
+        fallback_hits = 0
+
+        # 先批量翻译（authored → 缓存 → 并发 LLM/离线），再组装
+        translations = self._translate_all(
+            [s.text for s in sentences], level=profile.level, authored=authored_translations
+        )
 
         for sentence in sentences:
-            translation = self._translate_sentence(
-                sentence.text,
-                level=profile.level,
-                authored=authored_translations,
-            )
+            translation = translations.get(sentence.text)
             if translation is not None:
                 translated += 1
                 if translation.source == "authored":
                     authored_hits += 1
+                elif translation.source == "offline-literal":
+                    fallback_hits += 1
 
             glosses = build_word_glosses(
                 sentence.text, self.glossary, override=authored_glossary
@@ -355,6 +386,10 @@ class MaterialBuilder:
                 f"词表中有 {len(vocabulary) - covered} 个词未收录中文释义。"
                 "运行 `python tools/build_glossary.py` 可生成更完整的西汉词表。"
             )
+        if fallback_hits and self._is_llm:
+            warnings.append(
+                f"有 {fallback_hits} 句 AI 翻译失败或超时，已回退为逐词直译（仅供参考）。"
+            )
         if profile.notes_depth != "basic" and not authored_hits:
             warnings.append(
                 "当前材料的逐句讲解来自离线模式，内容有限；"
@@ -393,37 +428,125 @@ class MaterialBuilder:
     # 子步骤
     # ------------------------------------------------------------------
 
-    def _translate_sentence(
-        self, text: str, *, level: str, authored: Dict[str, dict]
-    ) -> Optional[Translation]:
-        """优先使用自撰译文；否则交给翻译提供方（离线逐词直译或大模型）。"""
-        entry = authored.get(demo_key(text))
-        if entry and entry.get("zh"):
-            return Translation(
-                text=entry["zh"], approximate=False, source="authored",
-                note="译文由本项目作者撰写。",
-            )
+    def _translate_all(
+        self,
+        texts: Sequence[str],
+        *,
+        level: str,
+        authored: Dict[str, dict],
+    ) -> Dict[str, Translation]:
+        """批量翻译：自撰译文 → 缓存 → 提供方（LLM 并发 / 离线串行）。
+
+        返回 ``{原文: Translation}``（键为传入的原样文本）。
+        失败的句子返回离线直译回退，保证每个句子都有条目。
+        """
+        results: Dict[str, Translation] = {}
+        pending: Dict[str, str] = {}  # demo_key -> 该键首次出现的原样文本
+
+        for text in texts:
+            entry = authored.get(demo_key(text))
+            if entry and entry.get("zh"):
+                results[text] = Translation(
+                    text=entry["zh"], approximate=False, source="authored",
+                    note="译文由本项目作者撰写。",
+                )
+                continue
+            cache_key = (demo_key(text), level)
+            hit = self._translation_cache.get(cache_key)
+            if hit is not None:
+                results[text] = hit
+                continue
+            pending.setdefault(demo_key(text), text)
+
+        if pending:
+            keys = list(pending)
+            if self._is_llm and len(keys) > 1:
+                self._translate_pending_concurrent(pending, level=level, results=results)
+            else:
+                for key in keys:
+                    translation = self._translate_one(pending[key], level=level)
+                    if translation is not None:
+                        results[pending[key]] = translation
+
+        return results
+
+    def _translate_pending_concurrent(
+        self,
+        pending: Dict[str, str],
+        *,
+        level: str,
+        results: Dict[str, Translation],
+    ) -> None:
+        """用线程池并发调用 LLM，带整体时间预算；超时的句子回退离线直译。"""
+        timeout = getattr(self.translator, "_timeout", 30) or 30
+        workers = min(self._llm_max_workers, len(pending))
+        deadline = min(
+            TRANSLATION_DEADLINE_CAP,
+            max(60.0, len(pending) * timeout / workers + 15.0),
+        )
+
+        pool = ThreadPoolExecutor(max_workers=workers)
+        futures: Dict[Future, str] = {
+            pool.submit(self._translate_one, text, level=level): key
+            for key, text in pending.items()
+        }
+        pool.shutdown(wait=False)  # 提交后不阻塞退出，靠 as_completed 收集
 
         try:
-            return self.translator.translate(text, level=level)  # type: ignore[call-arg]
+            for future in as_completed(futures, timeout=deadline):
+                key = futures[future]
+                try:
+                    translation = future.result()
+                except Exception:  # noqa: BLE001 - 单句失败不影响其它句子
+                    translation = None
+                results[pending[key]] = (
+                    translation if translation is not None else self._offline_fallback(pending[key])
+                )
+        except FuturesTimeoutError:
+            # 整体预算耗尽：未完成的句子立即回退离线，不硬杀后台线程
+            pass
+        finally:
+            for future, key in futures.items():
+                if key not in results and not future.done():
+                    future.cancel()
+                    fallback = self._offline_fallback(pending[key])
+                    if fallback is not None:
+                        results[pending[key]] = fallback
+
+    def _translate_one(self, text: str, *, level: str) -> Optional[Translation]:
+        """翻译单句：提供方成功则写缓存；任何失败回退离线直译（短文案）。"""
+        try:
+            translation = self.translator.translate(text, level=level)  # type: ignore[call-arg]
         except TypeError:
             # 提供方实现不支持 level 参数
             try:
-                return self.translator.translate(text)
+                translation = self.translator.translate(text)
             except Exception:
-                return None
-        except ProviderNotConfigured as exc:
-            # 大模型不可用：回退到离线逐词直译
-            fallback = LiteralGlossTranslator(self.glossary)
-            try:
-                result = fallback.translate(text)
-            except Exception:
-                return None
-            if result is not None:
-                result.note = f"{result.note}（大模型不可用：{exc}）"
-            return result
-        except Exception:
+                translation = None
+        except Exception:  # noqa: BLE001 - ProviderNotConfigured/超时/HTTP 错误统一回退
+            translation = None
+
+        if translation is not None:
+            cache_key = (demo_key(text), level)
+            if len(self._translation_cache) >= TRANSLATION_CACHE_LIMIT:
+                self._translation_cache.clear()
+            self._translation_cache[cache_key] = translation
+            return translation
+        return self._offline_fallback(text)
+
+    def _offline_fallback(self, text: str) -> Optional[Translation]:
+        """离线逐词直译回退，note 用统一短文案。"""
+        try:
+            result = self._fallback.translate(text)
+        except Exception:  # noqa: BLE001
             return None
+        if result is not None:
+            result.note = FALLBACK_NOTE
+        return result
+
+    @property
+    def _is_llm(self) -> bool:
+        return getattr(self.translator, "name", "").startswith("llm")
 
     def _build_vocabulary(
         self,
@@ -568,11 +691,17 @@ class MaterialBuilder:
 
     def _translator_summary(self) -> dict:
         name = getattr(self.translator, "name", "unknown")
+        model = ""
+        if name.startswith("llm"):
+            status = getattr(self.translator, "status", None)
+            model = ((callable(status) and (status() or {}).get("model")) or "")
         info = {
             "name": name,
             "is_llm": name.startswith("llm"),
             "note": (
-                "使用大模型做整句翻译。"
+                f"使用大模型（{model}）做整句翻译。"
+                if name.startswith("llm") and model
+                else "使用大模型做整句翻译。"
                 if name.startswith("llm")
                 else "离线模式：逐词直译（仅供参考）+ 内置示例的人工译文。"
             ),

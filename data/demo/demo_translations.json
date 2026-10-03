@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "name": "demo_translations",
+    "license": "MIT",
+    "author": "本仓库作者自撰",
+    "description": "内置示例字幕（demo_es.srt）的整句中文译文与讲解注释，全部由本仓库作者撰写，不包含任何第三方字幕或译文。仅用于无网络 / 无 API 时演示界面与流程。",
+    "key_rule": "键 = 句子的西语原文（转小写、合并空白），与 segmenter 切出的句子一一对应。",
+    "disclaimer": "示例材料是自撰的教学文本，时间戳仅用于演示「点击时间点跳转」功能，并不对应示例视频的真实画面。"
+  },
+  "sentences": {
+    "hola, me llamo ana y vivo en valencia.": {
+      "zh": "你好，我叫 Ana，住在瓦伦西亚。",
+      "notes": ["me llamo 字面是「我叫我自己」，是西班牙语介绍姓名的固定说法。"]
+    },
+    "hoy quiero contaros cómo es mi rutina diaria.": {
+      "zh": "今天我想跟大家讲讲我的日常生活是什么样的。",
+      "notes": ["contaros = contar + os：向「你们」讲述。西班牙本土常用 vosotros（你们）这一人称。"]
+    },
+    "me levanto a las siete de la mañana.": {
+      "zh": "我早上七点起床。",
+      "notes": ["levantarse 是自复动词，me levanto 强调「自己起来」。"]
+    },
+    "lo primero que hago es abrir la ventana y mirar el cielo.": {
+      "zh": "我做的第一件事，是打开窗户看看天空。",
+      "notes": ["lo primero que… es… 是常用结构：「我做的第一件事是……」。"]
+    },
+    "después desayuno un café con leche y una tostada de pan.": {
+      "zh": "然后我吃早饭：一杯加奶咖啡和一片烤面包。",
+      "notes": ["café con leche 是西班牙最常见的咖啡喝法，字面即「咖啡加牛奶」。"]
+    },
+    "a las ocho salgo de casa y camino hasta la parada del autobús.": {
+      "zh": "八点我出门，一直走到公交车站。",
+      "notes": ["salir de casa = 出门、离家；hasta 表示「一直到」。"]
+    },
+    "trabajo en una biblioteca del centro.": {
+      "zh": "我在市中心的一家图书馆工作。",
+      "notes": ["del centro = de + el centro（市中心的），de 与 el 缩合为 del。"]
+    },
+    "allí paso la mañana ayudando a los estudiantes.": {
+      "zh": "我在那里帮着学生们，就这样度过一上午。",
+      "notes": ["ayudando 是副动词（gerundio），在此表示「以帮助的方式」度过时间。"]
+    },
+    "casi siempre como a las dos, en un bar cerca del trabajo.": {
+      "zh": "我几乎总是两点吃饭，就在单位附近的一家小馆里。",
+      "notes": ["这里的 como 是动词 comer（吃）的第一人称现在时，不要与「como（像）」混淆。"]
+    },
+    "por la tarde tengo clases de español.": {
+      "zh": "下午我有西班牙语课。",
+      "notes": ["por la tarde = 在下午；clases de español = 西语课。"]
+    },
+    "mi profesora es argentina y habla muy despacio.": {
+      "zh": "我的老师是阿根廷人，说话很慢。",
+      "notes": ["profesora 是阴性形式；argentina 用作形容词时也可指「阿根廷的」。"]
+    },
+    "estoy aprendiendo bastante rápido, aunque a veces me confundo con los verbos.": {
+      "zh": "我学得挺快的，不过有时候还是会弄混动词。",
+      "notes": ["estar + 副动词（estoy aprendiendo）强调「正在进行的学习」。", "confundirse con algo = 把某事弄混。"]
+    },
+    "cuando termino las clases, vuelvo a casa andando.": {
+      "zh": "课一结束，我就走路回家。",
+      "notes": ["andando 来自 andar（走），这里表示方式：「走着回去」。"]
+    },
+    "me encanta pasear por el parque al atardecer.": {
+      "zh": "我特别喜欢在黄昏时分到公园里散步。",
+      "notes": ["encantar 的用法和 gustar 一样：句子主语是被喜欢的事情（pasear），人是间接宾语。"]
+    },
+    "al llegar, ceno algo ligero y veo una película.": {
+      "zh": "一到家，我吃点清淡的，然后看部电影。",
+      "notes": ["al + 不定式（al llegar）表示「一……就……」。"]
+    },
+    "antes de dormir, apunto en un cuaderno las palabras nuevas.": {
+      "zh": "睡前，我把新单词记到本子上。",
+      "notes": ["antes de + 不定式 = 在……之前。"]
+    },
+    "así que, poco a poco, voy mejorando mi vocabulario.": {
+      "zh": "就这样，一点一点地，我的词汇量在慢慢提高。",
+      "notes": ["ir + 副动词（voy mejorando）表示渐变、逐步发生的过程。"]
+    },
+    "los fines de semana descanso y quedo con mis amigos.": {
+      "zh": "周末我休息，还会和朋友们约着见面。",
+      "notes": ["quedar con alguien 是西班牙口语中「和某人约见」的常用说法。"]
+    },
+    "a veces vamos al cine o simplemente charlamos en una terraza.": {
+      "zh": "有时候我们去看电影，或者干脆在露天座位上聊聊天。",
+      "notes": ["charlar = 闲聊；terraza 指咖啡馆设在户外的座位区。"]
+    },
+    "y eso es todo: mi rutina es sencilla, pero me hace feliz.": {
+      "zh": "就这些了：我的日常很简单，但它让我感到快乐。",
+      "notes": ["hacer feliz a alguien = 让某人快乐；me hace feliz = 让我快乐。"]
+    },
+    "además, hay algo reconfortante en la sencillez de lo cotidiano.": {
+      "zh": "而且，在日复一日的简单之中，有一种让人感到慰藉的东西。",
+      "notes": ["lo cotidiano 由中性冠词 lo + 形容词构成，表示抽象概念「日常的事物」。", "reconfortante = 令人感到慰藉的（C1 级词汇）。"]
+    },
+    "supongo que la clave está en disfrutar de las pequeñas cosas.": {
+      "zh": "我想，关键在于懂得享受那些微小的美好。",
+      "notes": ["la clave está en… 是固定表达：「关键在于……」。", "supongo que… = 我猜、我想（suponer 的第一人称现在时）。"]
+    }
+  }
+}

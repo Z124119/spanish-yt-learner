@@ -1,0 +1,87 @@
+1
+00:00:00,000 --> 00:00:04,200
+Hola, me llamo Ana y vivo en Valencia.
+
+2
+00:00:04,200 --> 00:00:08,600
+Hoy quiero contaros cómo es mi rutina diaria.
+
+3
+00:00:08,600 --> 00:00:12,800
+Me levanto a las siete de la mañana.
+
+4
+00:00:12,800 --> 00:00:17,600
+Lo primero que hago es abrir la ventana y mirar el cielo.
+
+5
+00:00:17,600 --> 00:00:22,000
+Después desayuno un café con leche y una tostada de pan.
+
+6
+00:00:22,000 --> 00:00:26,800
+A las ocho salgo de casa y camino hasta la parada del autobús.
+
+7
+00:00:26,800 --> 00:00:30,600
+Trabajo en una biblioteca del centro.
+
+8
+00:00:30,600 --> 00:00:34,800
+Allí paso la mañana ayudando a los estudiantes.
+
+9
+00:00:34,800 --> 00:00:39,200
+Casi siempre como a las dos, en un bar cerca del trabajo.
+
+10
+00:00:39,200 --> 00:00:43,000
+Por la tarde tengo clases de español.
+
+11
+00:00:43,000 --> 00:00:47,600
+Mi profesora es argentina y habla muy despacio.
+
+12
+00:00:47,600 --> 00:00:52,400
+Estoy aprendiendo bastante rápido, aunque a veces me confundo con los verbos.
+
+13
+00:00:52,400 --> 00:00:56,200
+Cuando termino las clases, vuelvo a casa andando.
+
+14
+00:00:56,200 --> 00:01:00,400
+Me encanta pasear por el parque al atardecer.
+
+15
+00:01:00,400 --> 00:01:04,800
+Al llegar, ceno algo ligero y veo una película.
+
+16
+00:01:04,800 --> 00:01:09,200
+Antes de dormir, apunto en un cuaderno las palabras nuevas.
+
+17
+00:01:09,200 --> 00:01:13,600
+Así que, poco a poco, voy mejorando mi vocabulario.
+
+18
+00:01:13,600 --> 00:01:17,800
+Los fines de semana descanso y quedo con mis amigos.
+
+19
+00:01:17,800 --> 00:01:22,400
+A veces vamos al cine o simplemente charlamos en una terraza.
+
+20
+00:01:22,400 --> 00:01:26,800
+Y eso es todo: mi rutina es sencilla, pero me hace feliz.
+
+21
+00:01:26,800 --> 00:01:31,600
+Además, hay algo reconfortante en la sencillez de lo cotidiano.
+
+22
+00:01:31,600 --> 00:01:36,000
+Supongo que la clave está en disfrutar de las pequeñas cosas.

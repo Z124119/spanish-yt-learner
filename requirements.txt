@@ -1,0 +1,7 @@
+# 运行必需（Python >= 3.9）
+# 字幕抓取能力由 youtube-transcript-api 提供（MIT）
+youtube-transcript-api~=1.2.4
+# Web 框架（BSD-3）
+Flask~=3.1
+# 词频近似（代码 MIT / 数据 CC BY-SA 4.0）
+wordfreq~=3.1

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>西语 YouTube 学习助手</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">ES</span>
+    <div class="brand-text">
+      <h1>西语 YouTube 学习助手</h1>
+      <p class="tagline">粘贴链接 → 按 A1–C2 等级整理单词、句子与中文讲解，点时间点即可跳回原视频</p>
+    </div>
+  </div>
+  <div class="health" id="health" title="运行状态自检">
+    <span class="health-dot" id="health-dot"></span>
+    <span id="health-text">正在读取状态…</span>
+  </div>
+</header>
+
+<section class="controls card">
+  <div class="field field-url">
+    <label for="url">YouTube 链接</label>
+    <input id="url" type="url" spellcheck="false" autocomplete="off"
+           value="{{ default_url }}" placeholder="https://www.youtube.com/watch?v=...&t=123s">
+  </div>
+
+  <div class="field field-level">
+    <label for="level">学习者等级</label>
+    <select id="level">
+      {% for lv in levels %}
+      <option value="{{ lv }}"{% if lv == default_level %} selected{% endif %}>{{ lv }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="field field-actions">
+    <label class="sr-only">操作</label>
+    <div class="action-row">
+      <button id="btn-generate" class="btn primary" type="button">生成学习材料</button>
+      <button id="btn-demo" class="btn ghost" type="button">载入示例</button>
+      <button id="btn-upload" class="btn ghost" type="button">导入字幕</button>
+      <input id="file-input" type="file" accept=".srt,.vtt,.txt" hidden>
+    </div>
+  </div>
+</section>
+
+<div class="level-note" id="level-note"></div>
+
+<div class="banner" id="banner" hidden></div>
+
+<main class="layout">
+  <aside class="col-left">
+    <div class="card player-card">
+      <div class="player-frame" id="player-frame">
+        <div class="player-idle" id="player-idle">
+          <p class="player-idle-title">还没有加载视频</p>
+          <p class="player-idle-sub">点「生成学习材料」或「载入示例」后，视频与学习内容会一起出现在这里。</p>
+        </div>
+      </div>
+      <div class="player-meta" id="player-meta"></div>
+      <div class="player-tools">
+        <button id="btn-open-yt" class="btn tiny" type="button" disabled>在 YouTube 打开</button>
+        <span class="follow">
+          <input id="chk-follow" type="checkbox" disabled>
+          <label for="chk-follow">跟随播放高亮当前句</label>
+        </span>
+      </div>
+    </div>
+
+    <div class="card stats-card">
+      <h2 class="card-title">本次材料概览</h2>
+      <div id="stats-body" class="stats-body">
+        <p class="muted">尚未生成材料。</p>
+      </div>
+      <div id="warnings" class="warnings" hidden></div>
+    </div>
+  </aside>
+
+  <section class="col-right card">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="vocab" role="tab">单词 / 短语</button>
+      <button class="tab" data-tab="sentences" role="tab">句子</button>
+      <button class="tab" data-tab="paragraphs" role="tab">段落原文</button>
+      <span class="tab-spacer"></span>
+      <span class="tab-count" id="tab-count"></span>
+    </div>
+
+    <div class="panel" id="panel-vocab">
+      <p class="muted">按下「生成学习材料」后，这里会按你选择的等级列出值得学的单词与常用短语。</p>
+    </div>
+    <div class="panel" id="panel-sentences" hidden></div>
+    <div class="panel" id="panel-paragraphs" hidden></div>
+  </section>
+</main>
+
+<footer class="footer">
+  <span>v{{ version }}</span>
+  <span class="sep">·</span>
+  <span>代码 MIT；字幕抓取依赖 <a href="https://github.com/jdepoix/youtube-transcript-api" target="_blank" rel="noopener">youtube-transcript-api</a>（MIT）；词频近似依赖 <a href="https://github.com/rspeer/wordfreq" target="_blank" rel="noopener">wordfreq</a>（代码 MIT / 数据 CC BY-SA 4.0）；等级数据 ELELex（CC BY-NC-SA 4.0，非商业）</span>
+</footer>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

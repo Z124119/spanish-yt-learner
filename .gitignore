@@ -1,0 +1,36 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 虚拟环境（绝不提交） ----
+.venv/
+venv/
+env/
+
+# ---- 密钥与环境变量（绝不提交） ----
+.env
+.env.*
+!.env.example
+
+# ---- 生成的词表（体积大或含第三方授权数据，需要时用 tools/ 脚本重建） ----
+# es_zh_glossary.jsonl.gz 源自 Wiktionary，授权 CC BY-SA 3.0（与仓库 MIT 不兼容）
+data/es_zh_glossary.jsonl.gz
+data/es_zh_glossary.SOURCE.txt
+data/llm_glossary.jsonl.gz
+data/*.tmp.jsonl.gz
+
+# ---- 临时文件与缓存 ----
+tools/_cache/
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# ---- 编辑器 ----
+.idea/
+.vscode/
+*.swp

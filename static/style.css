@@ -461,6 +461,12 @@ select { cursor: pointer; font-weight: 600; }
   padding: 0 6px; border-radius: 999px;
   vertical-align: 1px;
 }
+.sent-zh .src.mt {
+  font-weight: 600; color: #4d5b70;
+  background: #eef1f6;
+  padding: 0 6px; border-radius: 999px;
+  vertical-align: 1px;
+}
 
 .gloss-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
 .gloss {

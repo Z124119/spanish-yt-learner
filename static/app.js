@@ -567,6 +567,7 @@
             (seg.translation_approximate && seg.translation_source !== 'authored' ? '<span class="approx">近似直译</span>' : '') +
             (seg.translation_source === 'authored' ? '<span class="src">人工译文</span>' : '') +
             (seg.translation_source && seg.translation_source.indexOf('llm') === 0 ? '<span class="src ai">AI 译文</span>' : '') +
+            (seg.translation_source === 'mymemory-free' ? '<span class="src mt">机翻译文</span>' : '') +
           '</div>'
         : '<div class="sent-zh"><span class="muted">（暂无中文译文）</span></div>';
 

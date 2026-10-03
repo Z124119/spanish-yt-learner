@@ -5,15 +5,23 @@
 """
 
 from .base import (
+    ChainedTranslator,
     GlossResult,
     ProviderNotConfigured,
     Translation,
     Translator,
     WordGloss,
 )
+from .llm import OpenAICompatibleTranslator
+from .mymemory import MyMemoryTranslator
+from .offline import LiteralGlossTranslator
 
 __all__ = [
+    "ChainedTranslator",
     "GlossResult",
+    "LiteralGlossTranslator",
+    "MyMemoryTranslator",
+    "OpenAICompatibleTranslator",
     "ProviderNotConfigured",
     "Translation",
     "Translator",

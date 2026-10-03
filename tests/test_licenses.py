@@ -87,9 +87,19 @@ class TestGeneratedGlossariesNotCommitted:
 
 
 class TestNoSecrets:
-    def test_no_env_file(self):
-        assert not (PROJECT_ROOT / ".env").exists(), (
-            "检测到 .env 文件，请确认它已被 .gitignore 排除，且里面只有本地测试配置"
+    def test_env_file_is_gitignored(self):
+        """.env 允许本地存在（用户配置密钥），但必须确保被 git 忽略。"""
+        env_path = PROJECT_ROOT / ".env"
+        if not env_path.exists():
+            return
+        import subprocess
+
+        result = subprocess.run(
+            ["git", "check-ignore", ".env"],
+            cwd=PROJECT_ROOT, capture_output=True, text=True,
+        )
+        assert result.returncode == 0, (
+            "检测到 .env 文件，但它没有被 .gitignore 排除——绝不能把密钥提交进仓库"
         )
 
     def test_source_has_no_hardcoded_key(self):

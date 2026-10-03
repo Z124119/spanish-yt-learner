@@ -53,6 +53,7 @@ class OpenAICompatibleTranslator:
     """调用任何 OpenAI 兼容的 ``/chat/completions`` 接口做整句翻译。"""
 
     name = "llm-openai-compatible"
+    concurrent = True  # 联网提供方，pipeline 可将其放入线程池
 
     def __init__(
         self,

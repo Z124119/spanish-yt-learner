@@ -15,6 +15,8 @@ class FakeLLM:
     """可编程的 LLM 替身：记录调用次数，可切换失败模式。"""
 
     name = "llm-openai-compatible"
+    concurrent = True
+    available = True
     _timeout = 5
 
     def __init__(self, *, fail=False, delay=0.0):
@@ -106,3 +108,68 @@ class TestPipelineWithLlm:
         assert results["Hola, me llamo Ana."].source == "authored"
         assert results["La casa es blanca."].source == "llm-openai-compatible"
         assert translator.calls == 1
+
+
+class FakeMT:
+    """MyMemory 替身（成功/失败可切换）。"""
+
+    name = "mymemory-free"
+    concurrent = True
+
+    def __init__(self, *, fail=False):
+        self.fail = fail
+
+    available = True
+
+    def translate(self, text, *, level=None):
+        if self.fail:
+            raise ProviderNotConfigured("限额")
+        return Translation(text=f"[MT] {text}", approximate=False, source=self.name)
+
+    def status(self):
+        return {"available": True, "email_set": False}
+
+
+class TestFallbackChain:
+    def test_llm_failure_falls_back_to_mymemory(self, cues_12):
+        from core.providers.base import ChainedTranslator
+
+        chain = ChainedTranslator(FakeLLM(fail=True), FakeMT())
+        builder = MaterialBuilder(translator=chain)
+        material = builder._assemble(cues=cues_12, level="B1", source="import")
+        sources = {s["translation_source"] for s in material["segments"]}
+        assert sources == {"mymemory-free"}
+        assert material["meta"]["translator"]["note"].startswith("在线回退链")
+
+    def test_whole_chain_failure_goes_offline(self, cues_12):
+        from core.providers.base import ChainedTranslator
+
+        chain = ChainedTranslator(FakeLLM(fail=True), FakeMT(fail=True))
+        builder = MaterialBuilder(translator=chain)
+        material = builder._assemble(cues=cues_12, level="B1", source="import")
+        for seg in material["segments"]:
+            assert seg["translation_source"] == "offline-literal"
+        assert any("在线翻译失败" in w for w in material["warnings"])
+
+    def test_want_llm_false_is_offline_only(self):
+        builder = MaterialBuilder(want_llm=False)
+        assert builder.translator.name == "offline-literal"
+        assert builder._online_enabled is False
+
+    def test_default_builder_uses_mymemory_when_no_llm(self, monkeypatch):
+        for var in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"):
+            monkeypatch.delenv(var, raising=False)
+        builder = MaterialBuilder()
+        assert builder.translator.name == "mymemory-free"
+        assert builder._online_enabled is True
+
+    def test_chain_summary_describes_members(self):
+        from core.providers.base import ChainedTranslator
+
+        builder = MaterialBuilder(translator=ChainedTranslator(FakeLLM(), FakeMT()))
+        material = builder._assemble(
+            cues=[SubtitleCue(start=0.0, duration=2.0, text="Hola.")],
+            level="B1", source="import",
+        )
+        note = material["meta"]["translator"]["note"]
+        assert "大模型（fake-model）" in note and "MyMemory" in note

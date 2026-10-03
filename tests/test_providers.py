@@ -7,8 +7,9 @@ import json
 import pytest
 
 from core.glossary import Glossary
-from core.providers.base import ProviderNotConfigured, Translation
+from core.providers.base import ChainedTranslator, ProviderNotConfigured, Translation
 from core.providers.llm import LEVEL_HINTS, OpenAICompatibleTranslator
+from core.providers.mymemory import MyMemoryTranslator
 from core.providers.offline import (
     LiteralGlossTranslator,
     build_word_glosses,
@@ -192,3 +193,134 @@ class TestLlmSuccessAndRetry:
         translator.translate("Hola.", level="A1")
         system = session.payloads[0]["messages"][0]["content"]
         assert LEVEL_HINTS["A1"] in system
+
+
+class FakeMTResponse:
+    """MyMemory JSON 响应替身。"""
+
+    def __init__(self, payload, status_code=200):
+        self._payload = payload
+        self.status_code = status_code
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        import requests
+
+        if self.status_code >= 400:
+            raise requests.HTTPError(str(self.status_code))
+
+
+class FakeMTSession:
+    """按脚本返回 MyMemory 响应，并记录 params。"""
+
+    def __init__(self, script):
+        self.script = list(script)
+        self.params_seen = []
+
+    def get(self, url, *, params=None, timeout=None):
+        self.params_seen.append(dict(params or {}))
+        item = self.script.pop(0) if self.script else self.script[-1]
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    def close(self):
+        pass
+
+
+def _ok_mt(text="房子很大。"):
+    return FakeMTResponse(
+        {"responseStatus": 200, "quotaFinished": False,
+         "responseData": {"translatedText": text}}
+    )
+
+
+class TestMyMemoryTranslator:
+    def test_success(self):
+        session = FakeMTSession([_ok_mt("房子很大。")])
+        translator = MyMemoryTranslator(session=session)
+        translation = translator.translate("La casa es grande.")
+        assert translation is not None
+        assert translation.text == "房子很大。"
+        assert translation.source == "mymemory-free"
+        assert translation.approximate is False
+        assert session.params_seen[0]["langpair"] == "es|zh-CN"
+
+    def test_always_available_without_config(self):
+        assert MyMemoryTranslator().available is True
+
+    def test_email_param_when_set(self, monkeypatch):
+        monkeypatch.setenv("MYMEMORY_EMAIL", "me@example.com")
+        session = FakeMTSession([_ok_mt()])
+        MyMemoryTranslator(session=session).translate("Hola.")
+        assert session.params_seen[0]["de"] == "me@example.com"
+
+    def test_quota_exhausted_raises(self):
+        session = FakeMTSession([FakeMTResponse(
+            {"responseStatus": 429, "responseDetails": "MYMEMORY WARNING: QUOTA EXCEEDED",
+             "responseData": {"translatedText": ""}})])
+        with pytest.raises(ProviderNotConfigured):
+            MyMemoryTranslator(session=session).translate("Hola.")
+
+    def test_non_chinese_text_rejected(self):
+        session = FakeMTSession([_ok_mt("La casa es grande")])  # 原样返回视为失败
+        with pytest.raises(ProviderNotConfigured):
+            MyMemoryTranslator(session=session).translate("La casa es grande")
+
+    def test_network_error_raises(self):
+        session = FakeMTSession([ConnectionError("boom")])
+        with pytest.raises(ProviderNotConfigured):
+            MyMemoryTranslator(session=session).translate("Hola.")
+
+
+class TestChainedTranslator:
+    def test_falls_through_to_next_provider(self):
+        class AlwaysFail:
+            name = "always-fail"
+
+            available = True
+
+            def translate(self, text, *, level=None):
+                raise ProviderNotConfigured("坏掉了")
+
+        class AlwaysOk:
+            name = "always-ok"
+            concurrent = True
+
+            available = True
+
+            def translate(self, text, *, level=None):
+                return Translation(text="ok", source=self.name)
+
+        chain = ChainedTranslator(AlwaysFail(), AlwaysOk())
+        assert chain.concurrent is True
+        translation = chain.translate("Hola.")
+        assert translation is not None and translation.source == "always-ok"
+
+    def test_all_fail_raises(self):
+        class Fail:
+            name = "fail"
+
+            available = True
+
+            def translate(self, text, *, level=None):
+                raise ProviderNotConfigured("x")
+
+        chain = ChainedTranslator(Fail())
+        with pytest.raises(ProviderNotConfigured):
+            chain.translate("Hola.")
+
+    def test_skips_unavailable_members(self):
+        class NotAvailable:
+            name = "na"
+
+            available = False
+
+            def translate(self, text, *, level=None):  # pragma: no cover
+                raise AssertionError("不应被调用")
+
+        ok = LiteralGlossTranslator(Glossary().load())
+        chain = ChainedTranslator(NotAvailable(), ok)
+        assert [p.name for p in chain._providers] == ["offline-literal"]

@@ -180,9 +180,21 @@ class MaterialBuilder:
         if translator is not None:
             self.translator = translator
         elif want_llm:
-            # 只有配置齐全时才用大模型，否则自动回退离线逐词直译
-            candidate = OpenAICompatibleTranslator()
-            self.translator = candidate if candidate.available else LiteralGlossTranslator(self.glossary)
+            # 在线回退链：大模型（若配置齐全）→ MyMemory 免费机翻；
+            # 两者都不可用或 want_llm=False 时退回离线逐词直译。
+            from .providers.base import ChainedTranslator
+            from .providers.mymemory import MyMemoryTranslator
+
+            candidates = []
+            llm_candidate = OpenAICompatibleTranslator()
+            if llm_candidate.available:
+                candidates.append(llm_candidate)
+            candidates.append(MyMemoryTranslator())
+
+            if len(candidates) == 1:
+                self.translator = candidates[0]
+            else:
+                self.translator = ChainedTranslator(*candidates)
         else:
             self.translator = LiteralGlossTranslator(self.glossary)
 
@@ -386,9 +398,9 @@ class MaterialBuilder:
                 f"词表中有 {len(vocabulary) - covered} 个词未收录中文释义。"
                 "运行 `python tools/build_glossary.py` 可生成更完整的西汉词表。"
             )
-        if fallback_hits and self._is_llm:
+        if fallback_hits and self._online_enabled:
             warnings.append(
-                f"有 {fallback_hits} 句 AI 翻译失败或超时，已回退为逐词直译（仅供参考）。"
+                f"有 {fallback_hits} 句在线翻译失败或超时，已回退为逐词直译（仅供参考）。"
             )
         if profile.notes_depth != "basic" and not authored_hits:
             warnings.append(
@@ -460,7 +472,7 @@ class MaterialBuilder:
 
         if pending:
             keys = list(pending)
-            if self._is_llm and len(keys) > 1:
+            if self._online_enabled and len(keys) > 1:
                 self._translate_pending_concurrent(pending, level=level, results=results)
             else:
                 for key in keys:
@@ -545,8 +557,9 @@ class MaterialBuilder:
         return result
 
     @property
-    def _is_llm(self) -> bool:
-        return getattr(self.translator, "name", "").startswith("llm")
+    def _online_enabled(self) -> bool:
+        """翻译提供方是否联网（决定是否值得并发）。"""
+        return bool(getattr(self.translator, "concurrent", False))
 
     def _build_vocabulary(
         self,
@@ -692,19 +705,35 @@ class MaterialBuilder:
     def _translator_summary(self) -> dict:
         name = getattr(self.translator, "name", "unknown")
         model = ""
-        if name.startswith("llm"):
+        note = "离线模式：逐词直译（仅供参考）+ 内置示例的人工译文。"
+
+        def _member_note(provider) -> str:
+            member_name = getattr(provider, "name", "unknown")
+            if member_name.startswith("llm"):
+                member_status = getattr(provider, "status", None)
+                member_model = (
+                    (callable(member_status) and (member_status() or {}).get("model")) or ""
+                )
+                return f"大模型（{member_model}）" if member_model else "大模型"
+            if member_name.startswith("mymemory"):
+                return "MyMemory 免费机翻"
+            return member_name
+
+        if name == "translation-chain":
+            members = getattr(self.translator, "_providers", [])
+            chain = " → ".join(_member_note(p) for p in members)
+            note = f"在线回退链：{chain} →（最终兜底）离线逐词直译。"
+        elif name.startswith("llm"):
             status = getattr(self.translator, "status", None)
             model = ((callable(status) and (status() or {}).get("model")) or "")
+            note = f"使用大模型（{model}）做整句翻译。" if model else "使用大模型做整句翻译。"
+        elif name.startswith("mymemory"):
+            note = "使用 MyMemory 免费机翻做整句翻译（每日限额，超限自动回退离线直译）。"
+
         info = {
             "name": name,
-            "is_llm": name.startswith("llm"),
-            "note": (
-                f"使用大模型（{model}）做整句翻译。"
-                if name.startswith("llm") and model
-                else "使用大模型做整句翻译。"
-                if name.startswith("llm")
-                else "离线模式：逐词直译（仅供参考）+ 内置示例的人工译文。"
-            ),
+            "is_llm": name.startswith("llm") or name == "translation-chain",
+            "note": note,
         }
         status = getattr(self.translator, "status", None)
         if callable(status):

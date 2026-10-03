@@ -280,6 +280,8 @@ def main() -> None:
     SETTINGS.llm_base_url = fresh.llm_base_url
     SETTINGS.llm_api_key = fresh.llm_api_key
     SETTINGS.llm_model = fresh.llm_model
+    SETTINGS.llm_timeout = fresh.llm_timeout
+    SETTINGS.yt_proxy_url = fresh.yt_proxy_url
     SETTINGS.default_url = fresh.default_url
     SETTINGS.default_level = fresh.default_level
 

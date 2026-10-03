@@ -455,6 +455,12 @@ select { cursor: pointer; font-weight: 600; }
   display: inline-block; margin-left: 6px;
   font-size: 11px; color: var(--muted);
 }
+.sent-zh .src.ai {
+  font-weight: 600; color: #1a5fa8;
+  background: #e8f1fb;
+  padding: 0 6px; border-radius: 999px;
+  vertical-align: 1px;
+}
 
 .gloss-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
 .gloss {

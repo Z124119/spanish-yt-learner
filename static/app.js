@@ -442,11 +442,13 @@
       ? 'ELELex 权威标注（' + levelData.authoritative_entries + ' 条）+ wordfreq 词频近似'
       : '仅 wordfreq 词频近似（未找到 ELELex 数据）';
 
+    var translatorModel = translator.status && translator.status.model
+      ? '（模型：' + translator.status.model + '）' : '';
     html += '<dl class="kv">' +
       '<div><dt>材料来源</dt><dd>' + esc(sourceLabel(material.source)) + '</dd></div>' +
       '<div><dt>中文释义</dt><dd>' + esc(glossaryLabel) + '</dd></div>' +
       '<div><dt>等级判定</dt><dd>' + esc(levelLabel) + '</dd></div>' +
-      '<div><dt>翻译方式</dt><dd>' + esc(translator.note || '—') + '</dd></div>' +
+      '<div><dt>翻译方式</dt><dd>' + esc((translator.note || '—') + translatorModel) + '</dd></div>' +
       '</dl>';
 
     if (material.vocabulary_hint) {
@@ -562,8 +564,9 @@
 
       var zh = seg.translation_zh
         ? '<div class="sent-zh">' + esc(seg.translation_zh) +
-            (seg.translation_approximate ? '<span class="approx">近似直译</span>' : '') +
+            (seg.translation_approximate && seg.translation_source !== 'authored' ? '<span class="approx">近似直译</span>' : '') +
             (seg.translation_source === 'authored' ? '<span class="src">人工译文</span>' : '') +
+            (seg.translation_source && seg.translation_source.indexOf('llm') === 0 ? '<span class="src ai">AI 译文</span>' : '') +
           '</div>'
         : '<div class="sent-zh"><span class="muted">（暂无中文译文）</span></div>';
 
@@ -708,6 +711,10 @@
 
     setBusy(true, '抓取字幕中…');
     hideBanner();
+    // LLM 整句翻译可能较慢：8 秒后仍未完成就升级提示文案
+    var slowTimer = setTimeout(function () {
+      if (state.busy) { setBusy(true, 'AI 翻译中，长视频约需 1-2 分钟…'); }
+    }, 8000);
 
     fetch('/api/material', {
       method: 'POST',
@@ -726,7 +733,7 @@
         showBanner('error', '请求失败', String(err && err.message ? err.message : err),
           '<div class="b-hint">请确认本地服务仍在运行，或改用「载入示例」。</div>');
       })
-      .finally(function () { setBusy(false); });
+      .finally(function () { clearTimeout(slowTimer); setBusy(false); });
   }
 
   function upload(file) {
